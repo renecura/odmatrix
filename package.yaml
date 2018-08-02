@@ -1,0 +1,63 @@
+name:                odmatrix
+version:             0.2.0.0
+github:              "renecura/odmatrix"
+license:             BSD3
+author:              "Rodrigo René Cura"
+maintainer:          "rodrigo.renecura@gmail.com"
+copyright:           "2018 Rodrigo René Cura"
+
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:  Please see the README on GitHub at <https://github.com/renecura/odmatrix#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- hmatrix
+- mtl
+- unordered-containers
+- hashable
+
+library:
+  source-dirs: src
+  exposed-modules:
+    ODMatrix
+    ODMatrix.SmithDecomposition
+    ODMatrix.ElementaryDecomposition
+  other-modules:
+    ODMatrix.Util.TriangularNumbers
+    ODMatrix.SmithDecomposition.SparseMat
+    ODMatrix.SmithDecomposition.Dimensions
+    ODMatrix.ElementaryDecomposition.ShortestPath
+
+
+# executables:
+#   odmatrix-exe:
+#     main:                Main.hs
+#     source-dirs:         app
+#     ghc-options:
+#     - -threaded
+#     - -rtsopts
+#     - -with-rtsopts=-N
+#     dependencies:
+#     - odmatrix
+
+# tests:
+#   odmatrix-test:
+#     main:                Spec.hs
+#     source-dirs:         test
+#     ghc-options:
+#     - -threaded
+#     - -rtsopts
+#     - -with-rtsopts=-N
+#     dependencies:
+#     - odmatrix
