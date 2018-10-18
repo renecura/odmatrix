@@ -10,61 +10,39 @@ module ODMatrix.ElementaryDecomposition (
   , applyPath
   , applicables
   , elementaryValue
+  , opposite
+  , isNullElementary
   , ODM
   , Bounds
   ) where
 
   import Numeric.LinearAlgebra
   --import Data.Tree (Tree(..), unfoldTree)
-
   
   import ODMatrix (ODM)
 
 
-  import Debug.Trace (trace)
+  data ElementaryMatrix = 
+    NullElementary Int |
+    Elementary Int (Int, Int) (Int, Int)
+    deriving (Show)
 
-  -- | Compact representation of an Elementary Matrix.
-  -- The sign indicates de sign of the i,j and h,k element.
-  data ElementaryMatrix = Elementary {
-    size    :: Int,                  -- ^ Number of rows/columns
-    indexes :: (Int, Int, Int, Int), -- ^ (i,j,h,k)
-    sign    :: Double                -- ^ 1 o -1. 0 Indicates the null operation.
-  } deriving (Show)
+  -- | Size of the elementary matrix
+  emSize :: ElementaryMatrix -> Int
+  emSize (NullElementary s) = s
+  emSize (Elementary s _ _) = s
 
 
   -- | Bounds of the capacity of the unit (Lower bound, Upper bound).
   type Bounds = (Double, Double) 
 
   
-  type Pivot = ((Int, Int), Double)
-
-
-  nullElementary :: Int -> ElementaryMatrix
-  nullElementary n = Elementary n (0,0,0,0) 0
-
-  
   -- Size, visited, s
   type ES = (ElementaryMatrix, ODM)
 
 
-  -- elementaryTree :: ODM         -- source
-  --                -> ODM         -- target
-  --                -> Tree ElementaryMatrix -- paths tree
-  -- elementaryTree a b = fst <$> unfoldTree _eTree (nullElementary (rows a), b - a)
-
-
-
-  -- _eTree :: ES -> (ES, [ES])
-  -- _eTree (e,s) = ((e,s), zip children apps)
-  --   where children = getChildren s
-  --         apps = applyElementaries s children
-
-
-
   applyElementaries :: ODM -> [ElementaryMatrix] -> [ODM]
-  applyElementaries s es
-    | s == (toMatrix . nullElementary) (rows s) = []
-    | otherwise = map (applyElementary s) es
+  applyElementaries s es = map (applyElementary s) es
     
 
   -- | Apply a elementary operation to the given ODM.
@@ -77,24 +55,38 @@ module ODMatrix.ElementaryDecomposition (
 
 
   -- | Given S, such that A + S = B, this function computes the first elementary permutation matrix E such that S' + E = S.
-  getChildren :: ODM       -- ^ Full path permutation matrix
+  getChildren :: ODM                  -- ^ Full path permutation matrix
                -> [ElementaryMatrix]  -- ^ All possible elementary matrices
-  getChildren s = foldl (\acc p -> acc ++ opposites s p pivots) [] pivots
-    where -- Filtra solo los potenciales pivotes a los que puede agregarse o quitarse un pasajero.
-          pivots = [ p | p@((i,j),x) <- toAssocList s, i <= j, x /= 0]  
+  getChildren odm = es ++ map opposite es
+    where al = toAssocList odm
+          s = rows odm
+          es = [ Elementary s (r1,c1) (r2,c2) | 
+                  ((r1,c1),_) <- al, 
+                  ((r2,c2),_) <- al, 
+                  r1 > r2, c1 < c2 ]
+
+
+  opposite :: ElementaryMatrix -> ElementaryMatrix
+  opposite (Elementary s (r1,c1) (r2,c2)) = Elementary s (r2,c1) (r1,c2)
+  opposite (NullElementary s) = NullElementary s
+
+
+  -- getChildren s = foldl (\acc p -> acc ++ opposites s p pivots) [] pivots
+  --   where -- Filtra solo los potenciales pivotes a los que puede agregarse o quitarse un pasajero.
+  --         pivots = [ p | p@((i,j),x) <- toAssocList s, i <= j, x /= 0]  
         
 
-  reciprocals :: Pivot -> [Pivot] -> [Pivot]
-  reciprocals ((i,j),x) pivots = 
-    [ p | p@((h,k),y) <- pivots, h < i, j < k, x/y > 0]
+  -- reciprocals :: Pivot -> [Pivot] -> [Pivot]
+  -- reciprocals ((i,j),x) pivots = 
+  --   [ p | p@((h,k),y) <- pivots, h < i, j < k, x/y > 0]
 
 
-  opposites :: ODM -> Pivot -> [Pivot] -> [ElementaryMatrix]
-  opposites s p@((i,j),x) pivots =
-    [ Elementary (rows s) (i,j,h,k) (signum x) 
-      | ((h,k),_) <- reciprocals p pivots, 
-        atIndex s (h,j) / x < 0,  -- Opposite signs
-        atIndex s (i,k) / x < 0 ] 
+  -- opposites :: ODM -> Pivot -> [Pivot] -> [ElementaryMatrix]
+  -- opposites s p@(i,j) pivots =
+  --   [ Elementary (rows s) (i,j) (h,k)
+  --     | ((h,k),_) <- reciprocals p pivots, 
+  --       atIndex s (h,j) / x < 0,  -- Opposite signs
+  --       atIndex s (i,k) / x < 0 ] 
 
 
 
@@ -107,13 +99,13 @@ module ODMatrix.ElementaryDecomposition (
 
   -- | Indicates if an elementary operation is applicable for a given origin destination matrix with the given bounds.
   applicable :: Bounds            -- ^ Bounds of the values of the target
-             -> ODM     -- ^ Target Origin-Destination Matrix
+             -> ODM               -- ^ Target Origin-Destination Matrix
              -> ElementaryMatrix  -- ^ Elementary operation to apply
              -> Bool              
-  applicable (mn,mx) s (Elementary _ (i,j,h,k) x)
-      | x ==   1  = p (i,j) < mx && p (h,k) < mx && p (i,k) > mn && p (h,j) > mn
-      | x == (-1) = p (i,j) > mn && p (h,k) > mn && p (i,k) < mx && p (h,j) < mx
-      | otherwise = error "ElementaryMatrix can only contain 1 o -1"
+  applicable _ _ (NullElementary _) = True
+  applicable (mn,mx) s (Elementary _ (i,j) (h,k)) = 
+    p (i,k) > mn && p (h,k) < mx &&
+    p (i,j) < mx && p (h,j) > mn
     where p = atIndex s
 
 
@@ -122,7 +114,9 @@ module ODMatrix.ElementaryDecomposition (
   elementaryValue :: (Int -> Int -> Double) -- ^ Measure function
                   -> ElementaryMatrix       -- ^ E                  
                   -> Double                 -- ^ Value of E
-  elementaryValue m (Elementary _ (i,_,h,_) s) = s * 2 * m i h
+  elementaryValue _ (NullElementary _) = 0
+  elementaryValue m (Elementary _ (r1,_ ) (r2,_)) = s * 2 * m r1 r2
+    where s = fromIntegral . signum $ (r1 - r2)
 
 
 
@@ -132,15 +126,21 @@ module ODMatrix.ElementaryDecomposition (
 
   -- | Transform the internal representation of a Elementary Matrix in a Matrix Double
   toMatrix :: ElementaryMatrix -> ODM
-  toMatrix (Elementary n (i,j,h,k) s) = 
-    assoc (n,n) 0 [((i,j),s), ((h,k),s), ((i,k),-s), ((h,j),-s)]
+  toMatrix (NullElementary n) = assoc (n,n) 0 []
+  toMatrix (Elementary n idx1@(r1,c1) idx2@(r2,c2)) = 
+    assoc (n,n) 0 [(idx1,1), (idx2,1), ((r1,c2),-1), ((r2,c1),-1)]
                   
 
-  -- | Transform a matrix to an assoc list
+  -- | Transform a matrix to an assoc list.
+  -- Recovers only the valid, different to 0, elements of the ODM.
   toAssocList :: ODM -> [((Int, Int), Double)]
-  toAssocList s = zip [ (i,j) | i<-[0..(n-1)], j<-[0..(m-1)]] (toList . flatten $ s)
+  toAssocList s = [ c | c@((i,j),v) <- zip idxs elems, i <= j, v /= 0]
     where n = rows s
-          m = cols s
+          idxs = [ (i,j) | i <- [0..(n-1)], j <- [0..(n-1)] ]
+          elems = toList . flatten $ s
 
 
-  
+  -- | Return True if the elementary matrix is a null elementary matrix.
+  isNullElementary :: ElementaryMatrix -> Bool
+  isNullElementary (NullElementary s) = True
+  isNullElementary _ = False

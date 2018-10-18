@@ -33,11 +33,11 @@ library:
     ODMatrix
     ODMatrix.SmithDecomposition
     ODMatrix.ElementaryDecomposition
+    ODMatrix.ElementaryDecomposition.ShortestPath
   other-modules:
     ODMatrix.Util.TriangularNumbers
     ODMatrix.SmithDecomposition.SparseMat
     ODMatrix.SmithDecomposition.Dimensions
-    ODMatrix.ElementaryDecomposition.ShortestPath
 
 
 # executables:

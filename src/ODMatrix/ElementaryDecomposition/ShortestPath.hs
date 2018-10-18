@@ -26,7 +26,8 @@ module ODMatrix.ElementaryDecomposition.ShortestPath (
   import ODMatrix.ElementaryDecomposition (ElementaryMatrix(..), ODM, 
                                        getChildren, applyElementary, 
                                        applyPath,
-                                       applicables, elementaryValue)
+                                       applicables, elementaryValue, 
+                                       opposite, isNullElementary)
 
 
   -- import Debug.Trace (trace)
@@ -59,10 +60,8 @@ module ODMatrix.ElementaryDecomposition.ShortestPath (
 
 
   -- | Map a Elementary Matrix to it related cells indexes
-  emc :: ElementaryMatrix 
-      -> (Int, Int)
-  emc e = (i,j)
-    where (i,_,j,_) = indexes e
+  emc :: ElementaryMatrix -> (Int, Int)
+  emc (Elementary _ (cell1, _) (cell2, _)) = (cell1,cell2)
 
 
 
@@ -75,7 +74,7 @@ module ODMatrix.ElementaryDecomposition.ShortestPath (
        -> Double                    -- ^ Difference between A and B
   odmc g ev beta a b = beta * g s + sum [ev i j | (i,j) <- sp]
     where p = sePath ev a b
-          sp = map emc p
+          sp = map emc . filter (not . isNullElementary) $ p
           s = b - applyPath a p -- Remainder
 
 
@@ -196,8 +195,8 @@ module ODMatrix.ElementaryDecomposition.ShortestPath (
   _wrapUp :: ODM -> SEP -> ([ElementaryMatrix],SEP)
   _wrapUp m s = (es, s)
     where p = M.lookup (HashMatrix m) (prev s)
-          op e = e {sign = - sign e}
-          odm = (\x -> applyElementary m (op x)) <$> p
+          --op e = e {sign = - sign e}
+          odm = (\x -> applyElementary m (opposite x)) <$> p
           es = maybe [] (\x -> fromJust p : fst (_wrapUp x s)) odm
   
 

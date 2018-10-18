@@ -117,7 +117,7 @@ module ODMatrix.SmithDecomposition (
   
   -- | Transform a vector in column matrix form to a ODM
   vectorToODM :: Matrix Double -> ODM
-  vectorToODM v = fromFlatList . toList . flatten $ v  
+  vectorToODM = fromFlatList . toList . flatten
 
   -- | Transform a ODM to vector in column matrix form
   odmToVector :: ODM -> Matrix Double
